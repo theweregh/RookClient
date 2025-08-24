@@ -1,19 +1,12 @@
-// src/api/ItemsApi.ts (cliente)
-export interface Item {
-  id: number;
-  userId: number;
-  name: string;
-  description: string;
-}
+import type { Item } from "../domain/Item";
 
-const BASE_URL = "http://localhost:3002/items"; // apuntar al server de inventario real
+const BASE_URL = "http://localhost:3002/items"; // servidor inventario
 
 export async function fetchItems(userId: number = 1): Promise<Item[]> {
   const res = await fetch(`${BASE_URL}?userId=${userId}`);
   if (!res.ok) throw new Error("Error al obtener items");
-  return res.json();
+  return res.json(); // devuelve con type, heroType, etc.
 }
-
 
 export async function fetchItemById(id: number): Promise<Item> {
   const res = await fetch(`${BASE_URL}/${id}`);

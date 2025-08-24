@@ -10,8 +10,8 @@ interface Props {
 export const AuctionDetails: React.FC<Props> = ({ auction, onClose }) => {
   return (
     <div className="modal p-4 bg-white rounded shadow-md">
-      <h2 className="text-xl font-bold mb-2">{auction.title}</h2>
-      <p className="mb-2"><strong>Descripción:</strong> {auction.description}</p>
+      <h2 className="text-xl font-bold mb-2">{auction.title || auction.item?.name}</h2>
+      <p className="mb-2"><strong>Descripción:</strong> {auction.description || auction.item?.description || "Sin descripción"}</p>
       <p className="mb-2"><strong>Precio actual:</strong> {auction.currentPrice}</p>
       {auction.buyNowPrice !== undefined && (
         <p className="mb-2"><strong>Precio compra rápida:</strong> {auction.buyNowPrice}</p>
@@ -32,10 +32,16 @@ export const AuctionDetails: React.FC<Props> = ({ auction, onClose }) => {
         </div>
       )}
       {auction.item && (
-        <div className="mb-2">
-          <strong>Item:</strong> {auction.item.name} - {auction.item.description}
-        </div>
-      )}
+  <div className="mb-2">
+    <strong>Item:</strong> {auction.item.name} - {auction.item.description}<br/>
+    <strong>Tipo:</strong> {auction.item.type}
+    {auction.item.heroType && <span> ({auction.item.heroType})</span>}<br/>
+    {auction.item.imagen && (
+      <img src={auction.item.imagen} alt={auction.item.name} className="w-32 h-32 object-cover mt-2"/>
+    )}
+  </div>
+)}
+
       <button className="mt-4 px-4 py-2 bg-blue-500 text-white rounded" onClick={onClose}>Cerrar</button>
     </div>
   );

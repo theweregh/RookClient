@@ -24,13 +24,15 @@ export class AuctionApiClient {
     buyNowPrice: a.buyNowPrice,
     status: a.status,
     createdAt: a.createdAt,
-    endsAt: a.endsAt,              // <--- agregar
-    bids: a.bids || [],            // aunque sea vacío
-    bidsCount: a.bidsCount || 0,   // <--- agregar
-    highestBid: a.highestBid,      // <--- agregar
-    highestBidderId: a.highestBidderId, // opcional
+    endsAt: a.endsAt,
+    bids: a.bids || [],
+    bidsCount: a.bidsCount || 0,
+    highestBid: a.highestBid,
+    highestBidderId: a.highestBidderId,
+    item: a.item, // 👈 añadir item completo (con type, heroType, isAvailable, imagen)
   }));
 }
+
 
 
     async getAuction(id: number): Promise<AuctionDTO> {
@@ -43,20 +45,22 @@ export class AuctionApiClient {
 
     const a = raw.data; // si tu backend envía { data: auction }
     return {
-        id: a.id,
-        title: a.item.name,
-        description: a.item.description,
-        startingPrice: a.startingPrice,
-        currentPrice: a.currentPrice,
-        buyNowPrice: a.buyNowPrice,
-        status: a.status,
-        createdAt: a.createdAt,
-        endsAt: a.endsAt,
-        bids: a.bids || [],
-        bidsCount: a.bidsCount || 0,
-        highestBid: a.highestBid,
-        highestBidderId: a.highestBidderId,
-    };
+  id: a.id,
+  title: a.item.name,
+  description: a.item.description,
+  startingPrice: a.startingPrice,
+  currentPrice: a.currentPrice,
+  buyNowPrice: a.buyNowPrice,
+  status: a.status,
+  createdAt: a.createdAt,
+  endsAt: a.endsAt,
+  bids: a.bids || [],
+  bidsCount: a.bidsCount || 0,
+  highestBid: a.highestBid,
+  highestBidderId: a.highestBidderId,
+  item: a.item, // 👈 aquí también
+};
+
 }
 
 

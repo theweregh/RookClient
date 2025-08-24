@@ -13,9 +13,22 @@ export const AuctionCard: React.FC<Props> = ({ auction, onBid, onBuyNow, onViewD
   return (
     <div className="border rounded p-4 m-2 w-64 shadow">
       <div className="h-40 bg-gray-200 flex items-center justify-center">
-        <span>Imagen</span>
-      </div>
-      <h3 className="font-bold mt-2">{auction.title}</h3>
+  {auction.item?.imagen ? (
+    <img
+      src={
+        auction.item.imagen.startsWith("data:")
+          ? auction.item.imagen
+          : `data:image/png;base64,${auction.item.imagen}`
+      }
+      alt={auction.item.name}
+      className="max-h-40 object-contain"
+    />
+  ) : (
+    <span>Sin imagen</span>
+  )}
+</div>
+
+      <h3 className="font-bold mt-2">{auction.title || auction.item?.name}</h3>
       <p>Precio actual: ${auction.currentPrice}</p>
       <p>Estado: {auction.status}</p>
       <div className="flex justify-between mt-2">

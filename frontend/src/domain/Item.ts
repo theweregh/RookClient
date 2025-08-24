@@ -1,7 +1,29 @@
 // client/domain/Item.ts
+export type ItemType =
+  | "Héroes"
+  | "Armas"
+  | "Armaduras"
+  | "Ítems"
+  | "Habilidades especiales"
+  | "Épicas";
+
+export type HeroType =
+  | "Guerrero Tanque"
+  | "Guerrero Armas"
+  | "Mago Fuego"
+  | "Mago Hielo"
+  | "Pícaro Veneno"
+  | "Pícaro Machete"
+  | "Chamán"
+  | "Médico";
+
 export interface Item {
   id: number;
+  userId: number;
   name: string;
   description: string;
-  // cualquier otro campo que devuelva el server de items
+  type: ItemType;
+  heroType?: HeroType;
+  isAvailable: boolean;
+  imagen: string;
 }
