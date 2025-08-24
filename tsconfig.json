@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "target": "es2022",
+    "module": "esnext",
+    "rootDir": "./frontend/src",
+    "outDir": "./build",
+    "moduleResolution": "node",
+    "typeRoots": ["node_modules/@types"],
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
+    "strict": true,
+    "jsx": "react-jsx",
+    "skipLibCheck": true
+  },
+  "include": ["frontend/src/**/*", "frontend/test/**/*"], 
+  "exclude": ["node_modules", "build", "vite.config.ts"]
+}
