@@ -8,7 +8,7 @@ import { AuctionApiClient } from "./infrastructure/AuctionApiClient";
 import { AuctionService } from "./application/AuctionService";
 import type { CreateAuctionInput } from "./application/AuctionService";
 import { io, Socket } from "socket.io-client";
-
+import {TransactionHistory} from "./components/TransactionHistory";
 const API_BASE = "http://localhost:3000/api";
 const ITEMS_BASE = "http://localhost:3000/api";
 const LOGIN_URL = "http://localhost:4000/login";
@@ -268,7 +268,7 @@ export const App: React.FC = () => {
 
       {/* Formulario de creación */}
       <CreateAuctionForm onCreate={handleCreate} />
-
+       {userId && token && <TransactionHistory userId={userId} token={token} />}   
       {/* Lista de subastas */}
       <AuctionList
         auctions={filteredAuctions}
