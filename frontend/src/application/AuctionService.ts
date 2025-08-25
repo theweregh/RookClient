@@ -3,37 +3,38 @@ import type { AuctionDTO } from "../domain/Auction";
 import { AuctionApiClient } from "../infrastructure/AuctionApiClient";
 
 export interface CreateAuctionInput {
-    userId: number;
-    itemId: number;
-    startingPrice: number;
-    buyNowPrice?: number;
-    durationHours: number;
+  itemId: number;
+  startingPrice: number;
+  buyNowPrice?: number;
+  durationHours: number;
 }
 
 export class AuctionService {
-    private readonly apiClient: AuctionApiClient;
+  private readonly apiClient: AuctionApiClient;
 
-    constructor(apiClient: AuctionApiClient) {
-        this.apiClient = apiClient;
-    }
+  constructor(apiClient: AuctionApiClient) {
+    this.apiClient = apiClient;
+  }
 
-    async listAuctions(): Promise<AuctionDTO[]> {
-        return this.apiClient.listAuctions();
-    }
+  async listAuctions(): Promise<AuctionDTO[]> {
+    return this.apiClient.listAuctions();
+  }
 
-    async getAuction(id: number): Promise<AuctionDTO> {
-        return this.apiClient.getAuction(id);
-    }
+  async getAuction(id: number): Promise<AuctionDTO> {
+    return this.apiClient.getAuction(id);
+  }
 
-    async createAuction(input: CreateAuctionInput): Promise<AuctionDTO> {
-        return this.apiClient.createAuction(input);
-    }
+  async createAuction(input: CreateAuctionInput): Promise<AuctionDTO> {
+    return this.apiClient.createAuction(input);
+  }
 
-    async placeBid(auctionId: number, userId: number, amount: number): Promise<boolean> {
-        return this.apiClient.placeBid(auctionId, userId, amount);
-    }
+  async placeBid(auctionId: number, amount: number): Promise<boolean> {
+    return this.apiClient.placeBid(auctionId, amount);
+  }
 
-    async buyNow(auctionId: number, userId: number): Promise<boolean> {
-        return this.apiClient.buyNow(auctionId, userId);
-    }
+  async buyNow(auctionId: number): Promise<boolean> {
+    return this.apiClient.buyNow(auctionId);
+  }
 }
+
+

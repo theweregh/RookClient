@@ -1,5 +1,6 @@
+// client/components/CreateAuctionForm.tsx
 import React, { useState } from "react";
-import type{ CreateAuctionInput } from "../application/AuctionService";
+import type { CreateAuctionInput } from "../application/AuctionService";
 
 interface Props {
   onCreate: (input: Omit<CreateAuctionInput, "itemId">) => void;
@@ -7,7 +8,6 @@ interface Props {
 
 export const CreateAuctionForm: React.FC<Props> = ({ onCreate }) => {
   const [form, setForm] = useState<Omit<CreateAuctionInput, "itemId">>({
-    userId: 1,
     startingPrice: 0,
     buyNowPrice: 0,
     durationHours: 24,
@@ -39,16 +39,27 @@ export const CreateAuctionForm: React.FC<Props> = ({ onCreate }) => {
         onChange={handleChange}
         className="border p-1 m-1"
       />
-      <input
-        type="number"
+
+      <label className="m-1">Duración:</label>
+      <select
         name="durationHours"
-        placeholder="Duración (horas)"
-        onChange={handleChange}
+        value={form.durationHours}
+        onChange={(e) =>
+          setForm((prev) => ({ ...prev, durationHours: Number(e.target.value) }))
+        }
         className="border p-1 m-1"
-      />
-      <button type="submit" className="bg-blue-500 text-white px-2 py-1 rounded">
+      >
+        <option value={24}>24 horas</option>
+        <option value={48}>48 horas</option>
+      </select>
+
+      <button
+        type="submit"
+        className="bg-blue-500 text-white px-2 py-1 rounded"
+      >
         Crear Subasta
       </button>
     </form>
   );
 };
+

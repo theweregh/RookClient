@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import type { AuctionDTO } from "./domain/Auction";
 import type { Item } from "./domain/Item";
 import { AuctionList } from "./components/AuctionList";
@@ -9,42 +9,81 @@ import { AuctionService } from "./application/AuctionService";
 import type { CreateAuctionInput } from "./application/AuctionService";
 import { io, Socket } from "socket.io-client";
 
-// --- Inicializar cliente y servicio ---
-const apiClient = new AuctionApiClient("http://localhost:3000/api");
-const auctionService = new AuctionService(apiClient);
-const itemsBaseUrl = "http://localhost:3000/api";
+const API_BASE = "http://localhost:3000/api";
+const ITEMS_BASE = "http://localhost:3000/api";
+const LOGIN_URL = "http://localhost:4000/login";
 
 export const App: React.FC = () => {
+  console.log("Render App");
+
+  // --- Estados principales ---
   const [auctions, setAuctions] = useState<AuctionDTO[]>([]);
-  const [filteredAuctions, setFilteredAuctions] = useState<AuctionDTO[]>([]);
   const [selected, setSelected] = useState<AuctionDTO | null>(null);
   const [items, setItems] = useState<Item[]>([]);
   const [selectedItemId, setSelectedItemId] = useState<number | null>(null);
-  const [socket] = useState<Socket>(() => io("http://localhost:3000"));
+  const [token, setToken] = useState<string | null>(null);
+  const [socket, setSocket] = useState<Socket | null>(null);
+  const [userId, setUserId] = useState<number | null>(null);
 
-  // --- Filtros ---
-  const [filterName, setFilterName] = useState("");
-  const [filterType, setFilterType] = useState("");
-  const [filterDuration, setFilterDuration] = useState<number | null>(null);
-  const [filterMaxPrice, setFilterMaxPrice] = useState<number | null>(null);
+  // --- Login automático ---
+  const login = async () => {
+    console.log("Intentando login...");
+    try {
+      const res = await fetch(LOGIN_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: "John Doe", password: "1234" }),
+      });
+      const data = await res.json();
+      console.log("Login response:", data);
+      setToken(data.token);
 
-  // --- Fetch inicial de subastas ---
+      // Extraer userId del token (JWT)
+      const payload = JSON.parse(atob(data.token.split('.')[1]));
+      setUserId(payload.userId);
+    } catch (err) {
+      console.error("Login failed:", err);
+    }
+  };
+
+  // --- Inicializar cliente y servicio con token ---
+  const apiClient = useMemo(() => {
+    if (!token) return null;
+    console.log("Creando API client con token:", token);
+    return new AuctionApiClient(API_BASE, token);
+  }, [token]);
+
+  const auctionService = useMemo(() => {
+    if (!apiClient) return null;
+    console.log("Creando AuctionService");
+    return new AuctionService(apiClient);
+  }, [apiClient]);
+
+  // --- Fetch de subastas ---
   const fetchAuctions = async () => {
+    if (!auctionService) return;
+    console.log("Fetching auctions...");
     try {
       const data = await auctionService.listAuctions();
+      console.log("Auctions fetched:", data);
       setAuctions(data);
     } catch (err) {
       console.error("Error fetching auctions:", err);
     }
   };
 
-  // --- Fetch inicial de items ---
+  // --- Fetch de items filtrando por usuario ---
   const fetchItems = async () => {
+    if (!token || !userId) return;
+    console.log("Fetching items for user:", userId);
     try {
-      const res = await fetch(`${itemsBaseUrl}/items?userId=1`);
-      if (!res.ok) throw new Error(`Error fetching items: ${res.statusText}`);
+      const res = await fetch(`${ITEMS_BASE}/items?userId=${userId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      console.log("Items fetch response status:", res.status);
+      if (!res.ok) throw new Error(res.statusText);
       const data: Item[] = await res.json();
-
+      console.log("User items fetched:", data);
       setItems(data);
       setSelectedItemId(data.length > 0 ? data[0].id : null);
     } catch (err) {
@@ -54,94 +93,116 @@ export const App: React.FC = () => {
     }
   };
 
-  // --- Efecto inicial y escucha de socket ---
+  // --- Efecto inicial ---
   useEffect(() => {
+    login();
+  }, []);
+
+  useEffect(() => {
+    if (!token || !userId) return;
+
+    console.log("Token y userId disponibles:", token, userId);
     fetchAuctions();
     fetchItems();
 
-    socket.on("NEW_AUCTION", (auction: AuctionDTO) => {
-      setAuctions((prev) => {
-        if (prev.some(a => a.id === auction.id)) return prev;
-        return [...prev, auction];
-      });
-    });
+    const s: Socket = io("http://localhost:3000", { auth: { token } });
+    console.log("Socket created:", s.id);
+    setSocket(s);
 
-    socket.on("AUCTION_UPDATED", (auction: AuctionDTO) => {
-      setAuctions((prev) => prev.map((a) => (a.id === auction.id ? auction : a)));
+    s.onAny((event, ...args) => {
+      console.log("[SOCKET EVENT]", event, args);
     });
-
-    socket.on("AUCTION_CLOSED", (auction: AuctionDTO) => {
-      setAuctions((prev) => prev.map((a) => (a.id === auction.id ? auction : a)));
-    });
+    s.on("connect", () => console.log("[SOCKET] connected:", s.id));
+    s.on("disconnect", (reason) => console.log("[SOCKET] disconnected:", reason));
 
     return () => {
-      socket.off("NEW_AUCTION");
-      socket.off("AUCTION_UPDATED");
-      socket.off("AUCTION_CLOSED");
+      s.offAny();
+      s.disconnect();
     };
-  }, [socket]);
+  }, [token, userId]);
 
   // --- Filtros ---
-  const applyFilters = () => {
-    const results = auctions.filter((a) => {
-      const matchName = filterName.length >= 4 ? a.title.toLowerCase().includes(filterName.toLowerCase()) : true;
+  const [filterName, setFilterName] = useState("");
+  const [filterType, setFilterType] = useState("");
+  const [filterDuration, setFilterDuration] = useState<number | null>(null);
+  const [filterMaxPrice, setFilterMaxPrice] = useState<number | null>(null);
+
+  const filteredAuctions = useMemo(() => {
+    return auctions.filter((a) => {
+      const matchName =
+        filterName.length >= 4
+          ? a.title.toLowerCase().includes(filterName.toLowerCase())
+          : true;
       const normalize = (str: string) =>
-  str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-
-const matchType = filterType
-  ? normalize(a.item?.type || "") === normalize(filterType)
-  : true;
-
-      const remainingHours = (new Date(a.endsAt).getTime() - Date.now()) / (1000 * 60 * 60);
-      const matchDuration = filterDuration ? remainingHours <= filterDuration : true;
+        str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+      const matchType = filterType
+        ? normalize(a.item?.type || "") === normalize(filterType)
+        : true;
+      const totalHours =
+        (new Date(a.endsAt).getTime() - new Date(a.createdAt).getTime()) /
+        (1000 * 60 * 60);
+      const matchDuration = filterDuration
+        ? Math.round(totalHours) === filterDuration
+        : true;
       const matchPrice = filterMaxPrice ? a.currentPrice <= filterMaxPrice : true;
-
       return matchName && matchType && matchDuration && matchPrice;
     });
-    setFilteredAuctions(results);
-  };
+  }, [auctions, filterName, filterType, filterDuration, filterMaxPrice]);
 
-  // --- Pujar ---
-  const handleBid = (id: number) => {
+  // --- Acciones ---
+  const handleBid = async (id: number) => {
+    if (!auctionService) return;
     const amountStr = prompt("Ingrese monto de la puja:");
     if (!amountStr) return;
     const amount = Number(amountStr);
-
-    socket.emit("PLACE_BID", { auctionId: id, userId: 1, amount });
-
-    setAuctions((prev) =>
-      prev.map((a) =>
-        a.id === id
-          ? {
-              ...a,
-              currentPrice: amount,
-              highestBid: { id: a.highestBid?.id || 0, auctionId: a.id, userId: 1, amount },
-              bidsCount: (a.bidsCount || 0) + 1,
-              bids: [...(a.bids || []), { id: (a.bids?.length || 0) + 1, auctionId: a.id, userId: 1, amount }],
-            }
-          : a
-      )
-    );
+    console.log("Intentando pujar:", { id, amount });
+    try {
+      const ok = await auctionService.placeBid(id, amount);
+      console.log("Resultado puja:", ok);
+      if (!ok) return alert("No se pudo realizar la puja. Verifica tus créditos.");
+      await fetchAuctions();
+      if (selected && selected.id === id) {
+        const fresh = await auctionService.getAuction(id);
+        setSelected(fresh);
+      }
+    } catch (err) {
+      alert("Error al realizar la puja.");
+      console.error(err);
+    }
   };
 
-  // --- Compra rápida ---
-  const handleBuyNow = (id: number) => {
-    socket.emit("BUY_NOW", { auctionId: id, userId: 1 });
-    setAuctions((prev) =>
-      prev.map((a) =>
-        a.id === id
-          ? { ...a, status: "CLOSED", currentPrice: a.buyNowPrice || a.currentPrice }
-          : a
-      )
-    );
+  const handleBuyNow = async (id: number) => {
+    if (!auctionService) return;
+    console.log("Intentando compra rápida:", id);
+    try {
+      const ok = await auctionService.buyNow(id);
+      console.log("Resultado BUY_NOW:", ok);
+      if (!ok) return alert("No se pudo realizar la compra rápida.");
+      await fetchAuctions();
+      if (selected && selected.id === id) {
+        const fresh = await auctionService.getAuction(id);
+        setSelected(fresh);
+      }
+    } catch (err) {
+      alert("Error en compra rápida.");
+      console.error(err);
+    }
   };
 
-  // --- Crear subasta ---
   const handleCreate = (input: Omit<CreateAuctionInput, "itemId">) => {
-    if (!selectedItemId) return;
-    socket.emit("CREATE_AUCTION", { ...input, itemId: selectedItemId });
+    if (!socket || !token) return alert("No hay socket o token");
+    if (!selectedItemId) return alert("No hay item seleccionado");
+
+    const data = { ...input, itemId: selectedItemId, token };
+    console.log("Emit CREATE_AUCTION:", data);
+    socket.emit("CREATE_AUCTION", data, (response: any) => {
+      console.log("CREATE_AUCTION callback:", response);
+      fetchAuctions();
+    });
   };
+
   const uniqueTypes = Array.from(new Set(items.map((item) => item.type)));
+
   return (
     <div className="p-4">
       <h1 className="text-2xl font-bold mb-4">Subastas Activas</h1>
@@ -157,49 +218,50 @@ const matchType = filterType
           className="border p-1 mr-2"
         />
         <select
-  value={filterType}
-  onChange={(e) => {
-    setFilterType(e.target.value);
-    // aplicamos los filtros inmediatamente
-    setTimeout(() => applyFilters(), 0); 
-  }}
-  className="border p-1 mr-2"
->
-
-  
-  <option value="">Todos los tipos</option>
-  {uniqueTypes.map((type) => (
-    <option key={type} value={type}>
-      {type}
-    </option>
-  ))}
-</select>
-
-        <input
-          type="number"
-          placeholder="Duración máxima (horas)"
-          value={filterDuration ?? ""}
-          onChange={(e) => setFilterDuration(Number(e.target.value) || null)}
+          value={filterType}
+          onChange={(e) => setFilterType(e.target.value)}
           className="border p-1 mr-2"
-        />
+        >
+          <option value="">Todos los tipos</option>
+          {uniqueTypes.map((type) => (
+            <option key={type} value={type}>
+              {type}
+            </option>
+          ))}
+        </select>
+        <select
+          value={filterDuration ?? ""}
+          onChange={(e) =>
+            setFilterDuration(e.target.value ? Number(e.target.value) : null)
+          }
+          className="border p-1 mr-2"
+        >
+          <option value="">Todas las duraciones</option>
+          <option value="24">24 horas</option>
+          <option value="48">48 horas</option>
+        </select>
         <input
           type="number"
           placeholder="Precio máximo"
           value={filterMaxPrice ?? ""}
-          onChange={(e) => setFilterMaxPrice(Number(e.target.value) || null)}
+          onChange={(e) =>
+            setFilterMaxPrice(Number(e.target.value) || null)
+          }
           className="border p-1 mr-2"
         />
-        <button onClick={applyFilters} className="bg-blue-500 text-white px-3 py-1 rounded">
-          Buscar
-        </button>
       </div>
 
       {/* Selección de item */}
       <div className="mb-4">
         <label>Selecciona un item: </label>
-        <select value={selectedItemId ?? undefined} onChange={(e) => setSelectedItemId(Number(e.target.value))}>
+        <select
+          value={selectedItemId ?? undefined}
+          onChange={(e) => setSelectedItemId(Number(e.target.value))}
+        >
           {items.map((item) => (
-            <option key={item.id} value={item.id}>{item.name}</option>
+            <option key={item.id} value={item.id}>
+              {item.name}
+            </option>
           ))}
         </select>
       </div>
@@ -209,14 +271,31 @@ const matchType = filterType
 
       {/* Lista de subastas */}
       <AuctionList
-        auctions={filteredAuctions.length || filterName || filterType || filterDuration || filterMaxPrice ? filteredAuctions : auctions}
+        auctions={filteredAuctions}
         onBid={handleBid}
         onBuyNow={handleBuyNow}
         onViewDetails={setSelected}
       />
 
       {/* Modal de detalles */}
-      {selected && <AuctionDetails auction={selected} onClose={() => setSelected(null)} />}
+      {selected && (
+        <AuctionDetails
+          auction={selected}
+          token={token || ""}
+          onClose={() => setSelected(null)}
+        />
+      )}
     </div>
   );
 };
+
+
+
+
+
+
+
+
+
+
+
