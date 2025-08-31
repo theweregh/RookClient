@@ -45,58 +45,83 @@ export const App: React.FC = () => {
   }, [auctionService, userId]);
 
   // Conexión socket y listeners
-  useEffect(() => {
-    if (!token || !userId) return;
-    const s: Socket = io("http://localhost:3000", { auth: { token } });
-    
-    s.on("connect", () => console.log("[SOCKET] connected:", s.id));
-    s.on("disconnect", (reason) => console.log("[SOCKET] disconnected:", reason));
-    s.onAny((event, ...args) => console.log("[SOCKET EVENT]", event, args));
+useEffect(() => {
+  if (!token || !userId) return;
+  const s: Socket = io("http://localhost:3000", { auth: { token } });
 
-    setSocket(s);
+  s.on("connect", () => console.log("[SOCKET] connected:", s.id));
+  s.on("disconnect", (reason) => console.log("[SOCKET] disconnected:", reason));
+  s.onAny((event, ...args) => console.log("[SOCKET EVENT]", event, args));
 
-    // Listeners de subastas
-    s.on("NEW_AUCTION", (auction: AuctionDTO) => {
-      setAuctions(prev => prev.some(a => a.id === auction.id) ? prev : [auction, ...prev]);
-    });
+  setSocket(s);
 
-    s.on("AUCTION_UPDATED", (partial: Partial<AuctionDTO> & { id: number }) => {
-      setAuctions(prev => {
-        const updatedAuctions = prev.map(a => a.id === partial.id ? { ...a, ...partial } : a);
-        const updatedAuction = updatedAuctions.find(a => a.id === partial.id);
-        if (updatedAuction) updateHistory(updatedAuction, userId!);
-        return updatedAuctions;
-      });
-      setSelected(prev => prev?.id === partial.id ? { ...prev, ...partial } : prev);
-    });
+  // Nueva subasta
+  s.on("NEW_AUCTION", (auction: AuctionDTO) => {
+    setAuctions(prev => prev.some(a => a.id === auction.id) ? prev : [auction, ...prev]);
+  });
 
-    s.on("AUCTION_CLOSED", (payload: { closedAuction: AuctionDTO }) => {
-      console.log("[SOCKET] AUCTION_CLOSED:", payload);
-      const auction = payload.closedAuction;
-      fetchAuctions();
-      fetchItems();
-      updateHistory(auction, userId!);
-    });
+  // Subasta actualizada (puja, edición, etc.)
+  s.on("AUCTION_UPDATED", (partial: Partial<AuctionDTO> & { id: number }) => {
+  setAuctions(prev => {
+    return prev.map(a => a.id === partial.id ? { ...a, ...partial } : a);
+  });
+  setSelected(prev => prev?.id === partial.id ? { ...prev!, ...partial } : prev);
+  // Actualiza historial si es necesario
+  const updatedAuction = auctions.find(a => a.id === partial.id);
+  if (updatedAuction) updateHistory({ ...updatedAuction, ...partial }, userId!);
+});
 
-    s.on("TRANSACTION_CREATED", (auction: AuctionDTO) => {
-      console.log("[SOCKET] TRANSACTION_CREATED:", auction);
-      fetchItems();
-      updateHistory(auction, userId!);
-    });
+s.on("NEW_AUCTION", (auction: AuctionDTO) => {
+  setAuctions(prev => prev.some(a => a.id === auction.id) ? prev : [auction, ...prev]);
+});
 
-    // Fetch inicial
-    fetchAuctions();
-    fetchItems();
 
-    return () => {
-      s.off("NEW_AUCTION");
-      s.off("AUCTION_UPDATED");
-      s.off("AUCTION_CLOSED");
-      s.off("TRANSACTION_CREATED");
-      s.offAny();
-      s.disconnect();
-    };
-  }, [token, userId]);
+  // Subasta cerrada o compra rápida
+  s.on("AUCTION_CLOSED", ({ closedAuction }: { closedAuction: AuctionDTO }) => {
+  // Actualiza historial
+  updateHistory(closedAuction, userId!);
+
+  // Actualiza lista de subastas eliminando la cerrada
+  setAuctions(prev => prev.filter(a => a.id !== closedAuction.id));
+
+  // Si la subasta cerrada estaba seleccionada, limpia selección
+  setSelected(prev => (prev?.id === closedAuction.id ? null : prev));
+
+  // Refresca items disponibles
+  fetchItems();
+});
+
+
+  // Historial de transacciones
+  s.on("TRANSACTION_CREATED", (auction: AuctionDTO) => {
+    updateHistory(auction, userId!);
+    fetchItems(); // refresca items disponibles
+  });
+
+  // Fetch inicial
+  fetchAuctions();
+  fetchItems();
+
+  return () => {
+    s.off("NEW_AUCTION");
+    s.off("AUCTION_UPDATED");
+    s.off("AUCTION_CLOSED");
+    s.off("TRANSACTION_CREATED");
+    s.offAny();
+    s.disconnect();
+  };
+}, [token, userId]);
+
+// Mantener selectedItemId sincronizado con items disponibles
+useEffect(() => {
+  const available = items.filter(i => i.isAvailable);
+  if (!available.length) {
+    setSelectedItemId(null);
+  } else if (!available.some(i => i.id === selectedItemId)) {
+    setSelectedItemId(available[0].id);
+  }
+}, [items]);
+
 
   // Mantener 'selected' sincronizado con 'auctions'
   useEffect(() => {
