@@ -46,32 +46,34 @@ export class AuctionApiClient {
     }));
   }
 
-  async getAuction(id: number): Promise<AuctionDTO> {
-    const res = await fetch(`${this.baseUrl}/auctions/${id}`, {
-      headers: this.getHeaders(),
-    });
-    if (!res.ok) {
-      const text = await res.text();
-      throw new Error(`Error getting auction ${id}: ${res.status} ${text}`);
-    }
-    const a = (await res.json()).data;
-    return {
-      id: a.id,
-      title: a.item.name,
-      description: a.item.description,
-      startingPrice: a.startingPrice,
-      currentPrice: a.currentPrice,
-      buyNowPrice: a.buyNowPrice,
-      status: a.status,
-      createdAt: a.createdAt,
-      endsAt: a.endsAt,
-      bids: a.bids || [],
-      bidsCount: a.bidsCount || 0,
-      highestBid: a.highestBid,
-      highestBidderId: a.highestBidderId,
-      item: a.item,
-    };
-  }
+  async getAuction(id: number): Promise<AuctionDTO | null> {
+  const res = await fetch(`${this.baseUrl}/auctions/${id}`, {
+    headers: this.getHeaders(),
+  });
+  if (!res.ok) return null;
+
+  const body = await res.json();
+  if (!body.data) return null; // <--- proteger
+
+  const a = body.data;
+  return {
+    id: a.id,
+    title: a.item.name,
+    description: a.item.description,
+    startingPrice: a.startingPrice,
+    currentPrice: a.currentPrice,
+    buyNowPrice: a.buyNowPrice,
+    status: a.status,
+    createdAt: a.createdAt,
+    endsAt: a.endsAt,
+    bids: a.bids || [],
+    bidsCount: a.bidsCount || 0,
+    highestBid: a.highestBid,
+    highestBidderId: a.highestBidderId,
+    item: a.item,
+  };
+}
+
 
   async createAuction(input: any): Promise<AuctionDTO> {
     const res = await fetch(`${this.baseUrl}/auctions`, {

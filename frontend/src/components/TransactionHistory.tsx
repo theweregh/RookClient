@@ -1,6 +1,8 @@
+// src/components/TransactionHistory.tsx
 import React, { useEffect, useState } from "react";
 import type { AuctionDTO } from "../domain/Auction";
 import { AuctionApiClient } from "../infrastructure/AuctionApiClient";
+import { io, Socket } from "socket.io-client";
 
 interface Props {
   token: string;
@@ -13,6 +15,7 @@ export const TransactionHistory: React.FC<Props> = ({ token, userId }) => {
   const [loading, setLoading] = useState<boolean>(true);
 
   const [usernames, setUsernames] = useState<Record<number, string>>({});
+  const [socket, setSocket] = useState<Socket | null>(null);
 
   const fetchUsername = async (id: number): Promise<string> => {
     if (usernames[id]) return usernames[id]; // cache
@@ -25,44 +28,85 @@ export const TransactionHistory: React.FC<Props> = ({ token, userId }) => {
     return data.username;
   };
 
+  const fetchHistory = async () => {
+    setLoading(true);
+    try {
+      const api = new AuctionApiClient("http://localhost:3000/api", token);
+
+      const purchasedData = await api.getPurchasedAuctions(userId);
+      const soldData = await api.getSoldAuctions(userId);
+
+      setPurchased(
+        purchasedData.sort(
+          (a: any, b: any) =>
+            new Date(b.endsAt).getTime() - new Date(a.endsAt).getTime()
+        )
+      );
+      setSold(
+        soldData.sort(
+          (a: any, b: any) =>
+            new Date(b.endsAt).getTime() - new Date(a.endsAt).getTime()
+        )
+      );
+
+      // precargar usernames
+      const userIds = [
+        ...purchasedData.map((a) => a.item?.userId),
+        ...soldData.map((a) => a.highestBidderId),
+      ].filter(Boolean) as number[];
+
+      await Promise.all(userIds.map((id) => fetchUsername(id)));
+    } catch (err) {
+      console.error("Error fetching transaction history:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchHistory = async () => {
-      setLoading(true);
-      try {
-        const api = new AuctionApiClient("http://localhost:3000/api", token);
+  if (!token || !userId) return;
 
-        const purchasedData = await api.getPurchasedAuctions(userId);
-        const soldData = await api.getSoldAuctions(userId);
+  fetchHistory();
 
-        setPurchased(
-          purchasedData.sort(
-            (a: any, b: any) =>
-              new Date(b.endsAt).getTime() - new Date(a.endsAt).getTime()
-          )
-        );
-        setSold(
-          soldData.sort(
-            (a: any, b: any) =>
-              new Date(b.endsAt).getTime() - new Date(a.endsAt).getTime()
-          )
-        );
+  const s: Socket = io("http://localhost:3000", { auth: { token } });
+  setSocket(s);
 
-        // precargar usernames
-        const userIds = [
-          ...purchasedData.map((a) => a.item?.userId),
-          ...soldData.map((a) => a.highestBidderId),
-        ].filter(Boolean) as number[];
+  s.on("connect", () => console.log("[SOCKET] connected:", s.id));
+  s.on("disconnect", (reason) => console.log("[SOCKET] disconnected:", reason));
 
-        await Promise.all(userIds.map((id) => fetchUsername(id)));
-      } catch (err) {
-        console.error("Error fetching transaction history:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
+  // Manejar cierre de subasta / compra rápida
+  s.on("AUCTION_CLOSED", (auction: AuctionDTO) => {
+    console.log("[SOCKET] AUCTION_CLOSED:", auction);
 
-    fetchHistory();
-  }, [token, userId]);
+    // Si soy comprador
+    if (auction.highestBidderId === userId) {
+      setPurchased((prev) => {
+        const exists = prev.find((a) => a.id === auction.id);
+        if (exists) return prev.map((a) => (a.id === auction.id ? auction : a));
+        return [auction, ...prev];
+      });
+    }
+
+    // Si soy vendedor
+    if (auction.item?.userId === userId) {
+      setSold((prev) => {
+        const exists = prev.find((a) => a.id === auction.id);
+        if (exists) return prev.map((a) => (a.id === auction.id ? auction : a));
+        return [auction, ...prev];
+      });
+    }
+
+    // Precargar usernames involucrados
+    if (auction.item?.userId) fetchUsername(auction.item.userId);
+    if (auction.highestBidderId) fetchUsername(auction.highestBidderId);
+  });
+
+  return () => {
+    s.off("AUCTION_CLOSED");
+    s.disconnect();
+  };
+}, [token, userId]);
+
 
   if (loading) return <p>Cargando historial...</p>;
 
@@ -99,4 +143,3 @@ export const TransactionHistory: React.FC<Props> = ({ token, userId }) => {
     </div>
   );
 };
-
