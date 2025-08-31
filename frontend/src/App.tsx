@@ -100,12 +100,16 @@ useEffect(() => {
 
 
     
-    s.on("AUCTION_CLOSED", (auction: AuctionDTO) => {
-        console.log("[SOCKET] AUCTION_CLOSED: refrescando lista de subastas y de items...");
-        fetchAuctions();
-        fetchItems(); // También actualiza la lista de ítems al cerrar una subasta
-        updateHistory(auction, userId!);
-    });
+    s.on("AUCTION_CLOSED", (payload: { closedAuction: AuctionDTO }) => {
+    console.log("[SOCKET] AUCTION_CLOSED:", payload);
+    const auction = payload.closedAuction;
+
+    fetchAuctions();
+    fetchItems();
+
+    // Actualiza el historial para todos los casos, incluyendo BUY_NOW
+    updateHistory(auction, userId!);
+});
 
     // ⚡ AÑADE ESTE LISTENER DE VUELTA
     
@@ -239,23 +243,25 @@ const handleBid = async (id: number) => {
 };
 
 
- const updateHistory = (auction: AuctionDTO, userId: number) => {
-  setPurchasedHistory(prev =>
-    auction.highestBidderId === userId
-      ? prev.some(a => a.id === auction.id)
-        ? prev.map(a => a.id === auction.id ? { ...a, ...auction } : a)
-        : [auction, ...prev]
-      : prev
-  );
+const updateHistory = (auction: AuctionDTO, userId: number) => {
+  // Historial de compras
+  setPurchasedHistory(prev => {
+    const isBuyer = auction.highestBidderId === userId;
+    if (!isBuyer) return prev;
 
-  setSoldHistory(prev =>
-    auction.item?.userId === userId
-      ? prev.some(a => a.id === auction.id)
-        ? prev.map(a => a.id === auction.id ? { ...a, ...auction } : a)
-        : [auction, ...prev]
-      : prev
-  );
+    const exists = prev.some(a => a.id === auction.id);
+    if (exists) return prev.map(a => a.id === auction.id ? { ...a, ...auction } : a);
+    return [auction, ...prev];
+  });
+
+  // Historial de ventas
+  setSoldHistory(prev => {
+    if (auction.item?.userId !== userId) return prev;
+    const exists = prev.some(a => a.id === auction.id);
+    return exists ? prev.map(a => a.id === auction.id ? { ...a, ...auction } : a) : [auction, ...prev];
+  });
 };
+
 
 
 
