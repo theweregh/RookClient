@@ -36,7 +36,11 @@ export const App: React.FC = () => {
   }, []);
 
   // Conexión socket y listeners
-  useEffect(() => {
+  // client/src/App.tsx
+// ... (imports y estados)
+
+// Conexión socket y listeners
+useEffect(() => {
     if (!token || !userId) return;
     const s: Socket = io("http://localhost:3000", { auth: { token } });
 
@@ -48,34 +52,39 @@ export const App: React.FC = () => {
 
     // Listeners de subastas
     s.on("NEW_AUCTION", (auction: AuctionDTO) => {
-  setAuctions(prev => prev.some(a => a.id === auction.id) ? prev : [auction, ...prev]);
-});
+        setAuctions(prev => prev.some(a => a.id === auction.id) ? prev : [auction, ...prev]);
+    });
 
     s.on("AUCTION_UPDATED", (auction: AuctionDTO) => {
-      setAuctions(prev => prev.map(a => a.id === auction.id ? auction : a));
-      setSelected(prev => prev?.id === auction.id ? auction : prev);
+        setAuctions(prev => prev.map(a => a.id === auction.id ? auction : a));
+        setSelected(prev => prev?.id === auction.id ? auction : prev);
     });
+    
     s.on("AUCTION_CLOSED", () => {
-  console.log("[SOCKET] AUCTION_CLOSED: refrescando lista de subastas...");
-  fetchAuctions(); // Vuelve a cargar la lista de subastas activas
-});
+        console.log("[SOCKET] AUCTION_CLOSED: refrescando lista de subastas y de items...");
+        fetchAuctions();
+        fetchItems(); // También actualiza la lista de ítems al cerrar una subasta
+    });
 
-
-    // Historial de items y transacciones
+    // ⚡ AÑADE ESTE LISTENER DE VUELTA
+    s.on("TRANSACTION_CREATED", () => {
+        console.log("[SOCKET] TRANSACTION_CREATED: refrescando lista de items...");
+        fetchItems();
+    });
 
     // Fetch inicial
     fetchAuctions();
     fetchItems();
 
     return () => {
-      s.off("NEW_AUCTION");
-      s.off("AUCTION_UPDATED");
-      s.off("AUCTION_CLOSED");
-      s.off("TRANSACTION_CREATED");
-      s.offAny();
-      s.disconnect();
+        s.off("NEW_AUCTION");
+        s.off("AUCTION_UPDATED");
+        s.off("AUCTION_CLOSED");
+        s.off("TRANSACTION_CREATED");
+        s.offAny();
+        s.disconnect();
     };
-  }, [token, userId]);
+}, [token, userId]);
 
   // Fetch inicial de subastas
   const fetchAuctions = async () => {
@@ -98,14 +107,24 @@ export const App: React.FC = () => {
       if (!res.ok) throw new Error(res.statusText);
       const data: Item[] = await res.json();
       setItems(data);
-      setSelectedItemId(data.length > 0 ? data[0].id : null);
+      // Esto es clave: si el ítem seleccionado ya no está disponible,
+      // seleccionamos el primero disponible o no seleccionamos ninguno
+      const firstAvailable = data.find(i => i.isAvailable);
+      if (!firstAvailable) {
+        setSelectedItemId(null);
+      } else if (selectedItemId === null || !data.find(i => i.id === selectedItemId)) {
+        setSelectedItemId(firstAvailable.id);
+      }
     } catch (err) {
       console.error(err);
       setItems([]);
       setSelectedItemId(null);
     }
   };
-
+  // ⚡ Aquí es donde filtramos la lista para solo mostrar los disponibles
+  const availableItems = useMemo(() => {
+    return items.filter(item => item.isAvailable);
+  }, [items]);
   // Filtros
   const [filterName, setFilterName] = useState("");
   const [filterType, setFilterType] = useState("");
@@ -168,8 +187,14 @@ export const App: React.FC = () => {
 
       <div className="mb-4">
         <label>Selecciona un item: </label>
-        <select value={selectedItemId ?? undefined} onChange={e => setSelectedItemId(Number(e.target.value))}>
-          {items.map(i => <option key={i.id} value={i.id}>{i.name}</option>)}
+        <select
+          value={selectedItemId ?? undefined}
+          onChange={e => setSelectedItemId(Number(e.target.value))}
+        >
+          {/* ⚡ Cambiamos `items` por `availableItems` aquí */}
+          {availableItems.map(i => (
+            <option key={i.id} value={i.id}>{i.name}</option>
+          ))}
         </select>
       </div>
 
