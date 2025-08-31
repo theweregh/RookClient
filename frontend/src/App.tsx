@@ -24,7 +24,7 @@ export const App: React.FC = () => {
 
   const apiClient = useMemo(() => token ? new AuctionApiClient(API_BASE, token) : null, [token]);
   const auctionService = useMemo(() => apiClient ? new AuctionService(apiClient) : null, [apiClient]);
-
+  
   // Cargar token y userId
   useEffect(() => {
     const savedToken = localStorage.getItem("token");
@@ -55,25 +55,13 @@ export const App: React.FC = () => {
       setAuctions(prev => prev.map(a => a.id === auction.id ? auction : a));
       setSelected(prev => prev?.id === auction.id ? auction : prev);
     });
-    s.on("AUCTION_CLOSED", (data: any) => {
-  console.log("[SOCKET] AUCTION_CLOSED:", data);
-
-  if (!data) return;
-
-  const { closedAuction, activeAuctions } = data;
-
-  // Actualizamos la lista de subastas
-  setAuctions(activeAuctions);
-
-  // Actualizamos el detalle si es la subasta cerrada
-  setSelected(prev => (prev?.id === closedAuction.id ? closedAuction : prev));
-
-  // Si quieres, también podrías actualizar itemsBought/itemsSold en TransactionHistory
+    s.on("AUCTION_CLOSED", () => {
+  console.log("[SOCKET] AUCTION_CLOSED: refrescando lista de subastas...");
+  fetchAuctions(); // Vuelve a cargar la lista de subastas activas
 });
 
 
     // Historial de items y transacciones
-    s.on("TRANSACTION_CREATED", () => fetchItems());
 
     // Fetch inicial
     fetchAuctions();
@@ -186,7 +174,7 @@ export const App: React.FC = () => {
       </div>
 
       <CreateAuctionForm onCreate={handleCreate} />
-      {userId && token && <TransactionHistory userId={userId} token={token} />}
+      {userId && token && <TransactionHistory userId={userId} token={token} socket={socket} />}
       <AuctionList auctions={filteredAuctions} onBid={handleBid} onBuyNow={handleBuyNow} onViewDetails={setSelected} />
       {selected && <AuctionDetails auction={selected} token={token || ""} onClose={() => setSelected(null)} />}
     </div>
