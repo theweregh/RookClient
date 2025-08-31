@@ -20,7 +20,7 @@ export class AuctionService {
     return this.apiClient.listAuctions();
   }
 
-  async getAuction(id: number): Promise<AuctionDTO> {
+  async getAuction(id: number): Promise<AuctionDTO | null> {
     return this.apiClient.getAuction(id);
   }
 

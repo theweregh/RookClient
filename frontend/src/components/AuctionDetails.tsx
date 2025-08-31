@@ -17,16 +17,17 @@ export const AuctionDetails: React.FC<Props> = ({ auction, token, onClose }) => 
   const auctionService = new AuctionService(apiClient);
 
   useEffect(() => {
-    const fetchAuction = async () => {
-      try {
-        const updated = await auctionService.getAuction(auction.id);
-        setFreshAuction(updated);
-      } catch (err) {
-        console.error("Error fetching auction details:", err);
-      }
-    };
-    fetchAuction();
-  }, [auction.id, auctionService]);
+  const fetchAuction = async () => {
+    try {
+      const updated = await auctionService.getAuction(auction.id);
+      if (updated) setFreshAuction(updated); // <-- solo setea si no es null
+    } catch (err) {
+      console.error("Error fetching auction details:", err);
+    }
+  };
+  fetchAuction();
+}, [auction, auctionService]);
+
 
   const getRemainingTime = (endDate: string) => {
     const diff = new Date(endDate).getTime() - Date.now();
