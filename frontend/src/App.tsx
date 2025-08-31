@@ -43,7 +43,7 @@ export const App: React.FC = () => {
 useEffect(() => {
     if (!token || !userId) return;
     const s: Socket = io("http://localhost:3000", { auth: { token } });
-
+    
     s.on("connect", () => console.log("[SOCKET] connected:", s.id));
     s.on("disconnect", (reason) => console.log("[SOCKET] disconnected:", reason));
     s.onAny((event, ...args) => console.log("[SOCKET EVENT]", event, args));
@@ -147,12 +147,26 @@ useEffect(() => {
 
   // Acciones de puja, compra y creación
   const handleBid = async (id: number) => {
-    if (!auctionService) return;
-    const amountStr = prompt("Ingrese monto de la puja:");
-    if (!amountStr) return;
-    const amount = Number(amountStr);
-    try { await auctionService.placeBid(id, amount); } catch (err) { console.error(err); }
-  };
+  if (!auctionService) return;
+  const amountStr = prompt("Ingrese monto de la puja:");
+  if (!amountStr) return;
+  const amount = Number(amountStr);
+  try { 
+    await auctionService.placeBid(id, amount);
+    
+    // ⚡ Refrescar subasta seleccionada y lista
+    const updated = await auctionService.getAuction(id);
+    setAuctions(prev => prev.map(a => a.id === id && updated ? updated : a));
+    setSelected(prev => prev?.id === id ? updated : prev);
+
+    // ⚡ Refrescar historial de transacciones del usuario comprador
+    // Si necesitas refrescar el historial, implementa la función aquí.
+  } catch (err) { 
+    console.error(err); 
+  }
+};
+
+
 
   const handleBuyNow = async (id: number) => {
     if (!auctionService) return;

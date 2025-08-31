@@ -53,29 +53,22 @@ export const TransactionHistory: React.FC<Props> = ({ token, userId, socket }) =
   // TransactionHistory.tsx
 // TransactionHistory.tsx
 useEffect(() => {
-    if (!token || !userId || !socket) return;
-    
-    // Fetch inicial del historial
+  if (!socket) return;
+
+  const refreshHistory = () => {
+    console.log("[SOCKET] Actualizando historial...");
     fetchHistory();
+  };
 
-    // Listener para cuando se crea una transacción (puja o compra rápida)
-    // El evento 'TRANSACTION_CREATED' es suficiente para disparar una actualización.
-    socket.on("TRANSACTION_CREATED", () => {
-        console.log("[SOCKET] TRANSACTION_CREATED: refrescando historial...");
-        fetchHistory(); // Recarga los datos del historial
-    });
-    
-    // Listener para cuando se cierra una subasta
-    socket.on("AUCTION_CLOSED", () => {
-        console.log("[SOCKET] AUCTION_CLOSED: refrescando historial...");
-        fetchHistory(); // Recarga los datos del historial
-    });
+  socket.on("TRANSACTION_CREATED", refreshHistory);
+  socket.on("AUCTION_CLOSED", refreshHistory);
 
-    return () => {
-        socket.off("TRANSACTION_CREATED");
-        socket.off("AUCTION_CLOSED");
-    };
-}, [token, userId, socket]);
+  return () => {
+    socket.off("TRANSACTION_CREATED", refreshHistory);
+    socket.off("AUCTION_CLOSED", refreshHistory);
+  };
+}, [socket]);
+
 
 
 
