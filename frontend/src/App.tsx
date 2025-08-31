@@ -21,11 +21,27 @@ export const App: React.FC = () => {
   const [token, setToken] = useState<string | null>(null);
   const [socket, setSocket] = useState<Socket | null>(null);
   const [userId, setUserId] = useState<number | null>(null);
-
+  const [purchasedHistory, setPurchasedHistory] = useState<AuctionDTO[]>([]);
+const [soldHistory, setSoldHistory] = useState<AuctionDTO[]>([]);
+const [loadingHistory, setLoadingHistory] = useState(false);
   const apiClient = useMemo(() => token ? new AuctionApiClient(API_BASE, token) : null, [token]);
   const auctionService = useMemo(() => apiClient ? new AuctionService(apiClient) : null, [apiClient]);
   
   // Cargar token y userId
+  useEffect(() => {
+  if (!auctionService) {
+    console.log("[DEBUG] auctionService NO está disponible");
+  } else {
+    console.log("[DEBUG] auctionService disponible:", auctionService);
+    if (typeof auctionService.getPurchasedAuctions !== "function") {
+      console.log("[DEBUG] getPurchasedAuctions NO es función");
+    }
+    if (typeof auctionService.getSoldAuctions !== "function") {
+      console.log("[DEBUG] getSoldAuctions NO es función");
+    }
+  }
+}, [auctionService]);
+
   useEffect(() => {
     const savedToken = localStorage.getItem("token");
     const savedUserId = localStorage.getItem("userId");
@@ -34,6 +50,11 @@ export const App: React.FC = () => {
       setUserId(Number(savedUserId));
     }
   }, []);
+  useEffect(() => {
+  if (!auctionService || !userId) return;
+  fetchHistory();
+}, [auctionService, userId]);
+
 
   // Conexión socket y listeners
   // client/src/App.tsx
@@ -55,22 +76,44 @@ useEffect(() => {
         setAuctions(prev => prev.some(a => a.id === auction.id) ? prev : [auction, ...prev]);
     });
 
-    s.on("AUCTION_UPDATED", (auction: AuctionDTO) => {
-        setAuctions(prev => prev.map(a => a.id === auction.id ? auction : a));
-        setSelected(prev => prev?.id === auction.id ? auction : prev);
-    });
+    s.on("AUCTION_UPDATED", (partial: Partial<AuctionDTO> & { id: number }) => {
+  setAuctions(prev => {
+    // Creamos la versión actualizada de la subasta
+    const updatedAuctions = prev.map(a => a.id === partial.id ? { ...a, ...partial } : a);
+
+    // Buscamos la subasta actualizada dentro del mismo array
+    const updatedAuction = updatedAuctions.find(a => a.id === partial.id);
+    if (updatedAuction) {
+      // Actualizamos el historial con la versión más reciente
+      updateHistory(updatedAuction, userId!);
+    }
+
+    return updatedAuctions;
+  });
+
+  // Actualizamos el seleccionado
+  setSelected(prev => prev?.id === partial.id ? { ...prev, ...partial } : prev);
+});
+
+
+
+
+
     
-    s.on("AUCTION_CLOSED", () => {
+    s.on("AUCTION_CLOSED", (auction: AuctionDTO) => {
         console.log("[SOCKET] AUCTION_CLOSED: refrescando lista de subastas y de items...");
         fetchAuctions();
         fetchItems(); // También actualiza la lista de ítems al cerrar una subasta
+        updateHistory(auction, userId!);
     });
 
     // ⚡ AÑADE ESTE LISTENER DE VUELTA
-    s.on("TRANSACTION_CREATED", () => {
-        console.log("[SOCKET] TRANSACTION_CREATED: refrescando lista de items...");
-        fetchItems();
-    });
+    
+s.on("TRANSACTION_CREATED", (auction: AuctionDTO) => {
+    console.log("[SOCKET] TRANSACTION_CREATED:", auction);
+    fetchItems();
+    updateHistory(auction, userId!);
+});
 
     // Fetch inicial
     fetchAuctions();
@@ -85,7 +128,20 @@ useEffect(() => {
         s.disconnect();
     };
 }, [token, userId]);
-
+  // 🔹 Mantener 'selected' sincronizado con 'auctions'
+useEffect(() => {
+  if (!selected) return;
+  const updated = auctions.find(a => a.id === selected.id);
+  if (updated && updated !== selected) {
+    setSelected(updated);
+  }
+}, [auctions, selected]);
+  useEffect(() => {
+  if (!token) {
+    setPurchasedHistory([]);
+    setSoldHistory([]);
+  }
+}, [token]);
   // Fetch inicial de subastas
   const fetchAuctions = async () => {
     if (!auctionService) return;
@@ -144,41 +200,93 @@ useEffect(() => {
       return matchName && matchType && matchDuration && matchPrice;
     });
   }, [auctions, filterName, filterType, filterDuration, filterMaxPrice]);
+const fetchHistory = async () => {
+  if (!auctionService || !userId) return; // ❌ importante: chequeo
+  setLoadingHistory(true);
+  try {
+    const purchased = await auctionService.getPurchasedAuctions(userId);
+    const sold = await auctionService.getSoldAuctions(userId);
 
-  // Acciones de puja, compra y creación
-  const handleBid = async (id: number) => {
-  if (!auctionService) return;
-  const amountStr = prompt("Ingrese monto de la puja:");
-  if (!amountStr) return;
-  const amount = Number(amountStr);
-  try { 
-    await auctionService.placeBid(id, amount);
-    
-    // ⚡ Refrescar subasta seleccionada y lista
-    const updated = await auctionService.getAuction(id);
-    setAuctions(prev => prev.map(a => a.id === id && updated ? updated : a));
-    setSelected(prev => prev?.id === id ? updated : prev);
-
-    // ⚡ Refrescar historial de transacciones del usuario comprador
-    // Si necesitas refrescar el historial, implementa la función aquí.
-  } catch (err) { 
-    console.error(err); 
+    setPurchasedHistory(
+      purchased.sort((a, b) => new Date(b.endsAt).getTime() - new Date(a.endsAt).getTime())
+    );
+    setSoldHistory(
+      sold.sort((a, b) => new Date(b.endsAt).getTime() - new Date(a.endsAt).getTime())
+    );
+  } catch (err) {
+    console.error("Error fetching history:", err);
+  } finally {
+    setLoadingHistory(false);
   }
 };
 
 
 
+  // Acciones de puja, compra y creación
+const handleBid = async (id: number) => {
+  const amountStr = prompt("Ingrese monto de la puja:");
+  if (!amountStr) return;
+  const amount = Number(amountStr);
+
+  try {
+    // Solo hacemos la puja, no necesitamos getAuction
+    await auctionService!.placeBid(id, amount);
+
+    // El socket AUCTION_UPDATED se encargará de actualizar la UI y el historial
+  } catch (err) {
+    console.error("[ERROR] handleBid:", err);
+  }
+};
+
+
+ const updateHistory = (auction: AuctionDTO, userId: number) => {
+  setPurchasedHistory(prev =>
+    auction.highestBidderId === userId
+      ? prev.some(a => a.id === auction.id)
+        ? prev.map(a => a.id === auction.id ? { ...a, ...auction } : a)
+        : [auction, ...prev]
+      : prev
+  );
+
+  setSoldHistory(prev =>
+    auction.item?.userId === userId
+      ? prev.some(a => a.id === auction.id)
+        ? prev.map(a => a.id === auction.id ? { ...a, ...auction } : a)
+        : [auction, ...prev]
+      : prev
+  );
+};
+
+
+
+
+
+
+
+
   const handleBuyNow = async (id: number) => {
-    if (!auctionService) return;
-    try { await auctionService.buyNow(id); } catch (err) { console.error(err); }
-  };
+  if (!auctionService) return alert("Servicio no disponible");
+  try {
+    const updated = await auctionService.getAuction(id);
+    if (updated) {
+  setAuctions(prev => prev.map(a => a.id === id ? updated : a));
+  setSelected(prev => prev?.id === id ? updated : prev);
+  // 🔹 Actualizamos historial solo con ese auction
+  updateHistory(updated, userId!);}
+
+    await auctionService.buyNow(id);
+  } catch (err) {
+    console.error(err);
+  }
+};
+
 
   const handleCreate = (input: Omit<CreateAuctionInput, "itemId">) => {
     if (!socket || !selectedItemId) return alert("No hay socket o item seleccionado");
     const data = { ...input, itemId: selectedItemId, token };
     socket.emit("CREATE_AUCTION", data);
   };
-
+  
   const uniqueTypes = Array.from(new Set(items.map(i => i.type)));
 
   return (
@@ -213,7 +321,14 @@ useEffect(() => {
       </div>
 
       <CreateAuctionForm onCreate={handleCreate} />
-      {userId && token && <TransactionHistory userId={userId} token={token} socket={socket} />}
+      {userId && token && <TransactionHistory 
+    userId={userId} 
+    token={token} 
+    socket={socket} 
+    purchased={purchasedHistory} 
+    sold={soldHistory} 
+/>
+}
       <AuctionList auctions={filteredAuctions} onBid={handleBid} onBuyNow={handleBuyNow} onViewDetails={setSelected} />
       {selected && <AuctionDetails auction={selected} token={token || ""} onClose={() => setSelected(null)} />}
     </div>

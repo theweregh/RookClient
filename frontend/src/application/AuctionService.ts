@@ -35,6 +35,13 @@ export class AuctionService {
   async buyNow(auctionId: number): Promise<boolean> {
     return this.apiClient.buyNow(auctionId);
   }
+
+  // 🔹 Nuevos métodos para historial
+  async getPurchasedAuctions(userId: number): Promise<AuctionDTO[]> {
+    return this.apiClient.getPurchasedAuctions(userId);
+  }
+
+  async getSoldAuctions(userId: number): Promise<AuctionDTO[]> {
+    return this.apiClient.getSoldAuctions(userId);
+  }
 }
-
-
