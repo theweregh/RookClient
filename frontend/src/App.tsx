@@ -9,9 +9,9 @@ import { AuctionService } from "./application/AuctionService";
 import type { CreateAuctionInput } from "./application/AuctionService";
 import { io, Socket } from "socket.io-client";
 import { TransactionHistory } from "./components/TransactionHistory";
-
-const API_BASE = "http://localhost:3000/api";
-const ITEMS_BASE = "http://localhost:3000/api";
+import { env } from "./env/env";
+const API_BASE = env.apiBase;
+const ITEMS_BASE = env.itemsBase;
 
 export const App: React.FC = () => {
   const [auctions, setAuctions] = useState<AuctionDTO[]>([]);
@@ -102,7 +102,7 @@ export const App: React.FC = () => {
     fetchItems();
     fetchHistory();
 
-    const s: Socket = io("http://localhost:3000", { auth: { token } });
+    const s: Socket = io(env.socketUrl, { auth: { token } });
     setSocket(s);
 
     s.on("connect", () => console.log("[SOCKET] connected:", s.id));
@@ -211,12 +211,6 @@ export const App: React.FC = () => {
     </div>
   );
 };
-
-
-
-
-
-
 
 
 

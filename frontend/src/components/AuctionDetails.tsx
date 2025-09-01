@@ -3,7 +3,7 @@ import React, { useEffect, useState } from "react";
 import type { AuctionDTO } from "../domain/Auction";
 import { AuctionService } from "../application/AuctionService";
 import { AuctionApiClient } from "../infrastructure/AuctionApiClient";
-
+import { env } from "../env/env";
 interface Props {
   auction: AuctionDTO;
   token: string;
@@ -13,7 +13,7 @@ interface Props {
 export const AuctionDetails: React.FC<Props> = ({ auction, token, onClose }) => {
   const [freshAuction, setFreshAuction] = useState<AuctionDTO>(auction);
 
-  const apiClient = new AuctionApiClient("http://localhost:3000/api", token);
+  const apiClient = new AuctionApiClient(env.apiBase, token);
   const auctionService = new AuctionService(apiClient);
 
   useEffect(() => {

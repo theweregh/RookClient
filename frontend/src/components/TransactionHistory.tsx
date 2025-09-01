@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import type { AuctionDTO } from "../domain/Auction";
 import { Socket } from "socket.io-client";
-
+import { env } from "../env/env";
 interface Props {
   token: string;
   userId: number;
@@ -23,7 +23,7 @@ export const TransactionHistory: React.FC<Props> = ({
   const fetchUsername = async (id: number): Promise<string> => {
     if (usernames[id]) return usernames[id];
     try {
-      const res = await fetch(`http://localhost:3000/api/users/${id}`, {
+      const res = await fetch(`${env.apiBase}/users/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) return "N/A";
