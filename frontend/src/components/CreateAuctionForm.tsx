@@ -62,3 +62,4 @@ export const CreateAuctionForm: React.FC<Props> = ({ onCreate }) => {
     </form>
   );
 };
+

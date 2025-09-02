@@ -13,7 +13,7 @@ interface Props {
 export const AuctionDetails: React.FC<Props> = ({ auction, token, onClose }) => {
   const [freshAuction, setFreshAuction] = useState<AuctionDTO>(auction);
 
-  const apiClient = new AuctionApiClient(env.apiBase, token);
+  const apiClient = new AuctionApiClient(env.api.base, token);
   const auctionService = new AuctionService(apiClient);
 
   useEffect(() => {

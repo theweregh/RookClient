@@ -1,8 +1,9 @@
 // ItemList.tsx
 import React, { useEffect, useState } from "react";
 import type { Item } from "../domain/Item";
-import { Socket } from "socket.io-client";
+import { io, Socket } from "socket.io-client";
 import { env } from "../env/env";
+
 interface Props {
   socket: Socket | null;
   token: string | null;
@@ -15,7 +16,7 @@ export const ItemList: React.FC<Props> = ({ socket, token }) => {
     if (!token) return;
 
     // Fetch inicial con token
-    fetch(`${env.itemsBase}/items`, {
+    fetch(`${env.api.items}/items`, {
       headers: { Authorization: `Bearer ${token}` }
     })
       .then(res => res.json())

@@ -1,25 +1,20 @@
 // src/api/auctionSocket.ts
 import { io, Socket } from "socket.io-client";
-import type { BidDTO } from "../domain/Auction";
-import { env } from "../env/env"; // 👈 importamos el archivo env.ts
+import type { AuctionDTO, BidDTO } from "../domain/Auction";
 
 let socket: Socket | null = null;
 
+// Usamos variable de entorno de Vite
+const SOCKET_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
+
 export const connectAuctionSocket = () => {
   if (!socket) {
-    socket = io(env.socketUrl); // 👈 usamos la variable del .env
+    socket = io(SOCKET_URL);
   }
   return socket;
 };
 
-export const onBuyNow = (
-  callback: (data: {
-    id: number;
-    status: string;
-    highestBid?: BidDTO;
-    buyNowPrice: number;
-  }) => void
-) => {
+export const onBuyNow = (callback: (data: { id: number; status: string; highestBid?: BidDTO; buyNowPrice: number }) => void) => {
   socket?.on("buyNow", callback);
 };
 

@@ -45,4 +45,3 @@ export class AuctionService {
     return this.apiClient.getSoldAuctions(userId);
   }
 }
-

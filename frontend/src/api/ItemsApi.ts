@@ -1,8 +1,7 @@
-// src/api/itemApi.ts
 import type { Item } from "../domain/Item";
-import { env } from "../env/env"; // importa tu env centralizado
+import { env } from "../env/env";
 
-const BASE_URL = `${env.itemsBase}/api/items`;
+const BASE_URL = `${env.api.base}/items`; // tu Auction server
 
 /**
  * Fetch items del usuario autenticado.
@@ -21,7 +20,7 @@ export async function fetchItems(token: string): Promise<Item[]> {
     throw new Error(`Error al obtener items: ${res.status} ${text}`);
   }
 
-  return res.json();
+  return res.json(); // devuelve con type, heroType, etc.
 }
 
 /**
@@ -44,4 +43,3 @@ export async function fetchItemById(id: number, token: string): Promise<Item> {
 
   return res.json();
 }
-

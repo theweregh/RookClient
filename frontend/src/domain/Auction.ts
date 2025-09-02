@@ -1,4 +1,5 @@
 // client/domain/Auction.ts
+// client/domain/Auction.ts
 import type { Item } from "./Item";
 
 export interface AuctionDTO {
