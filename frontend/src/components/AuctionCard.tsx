@@ -3,8 +3,8 @@ import type { AuctionDTO } from "../domain/Auction";
 
 interface Props {
   auction: AuctionDTO;
-  onBid: (id: number) => void;
-  onBuyNow: (id: number) => void;
+  onBid: (id: string) => void;
+  onBuyNow: (id: string) => void;
   onViewDetails: (auction: AuctionDTO) => void;
 }
 

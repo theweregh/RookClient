@@ -3,8 +3,8 @@ import type { AuctionDTO } from "../domain/Auction";
 
 interface AuctionListProps {
   auctions: AuctionDTO[];
-  onBid: (id: number) => void;
-  onBuyNow: (id: number) => void;
+  onBid: (id: string) => void;
+  onBuyNow: (id: string) => void;
   onViewDetails: React.Dispatch<React.SetStateAction<AuctionDTO | null>>;
 }
 

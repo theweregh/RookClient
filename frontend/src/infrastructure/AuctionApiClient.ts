@@ -46,7 +46,7 @@ export class AuctionApiClient {
     }));
   }
 
-  async getAuction(id: number): Promise<AuctionDTO | null> {
+  async getAuction(id: string): Promise<AuctionDTO | null> {
   const res = await fetch(`${this.baseUrl}/auctions/${id}`, {
     headers: this.getHeaders(),
   });
@@ -89,7 +89,7 @@ export class AuctionApiClient {
     return data.auction;
   }
 
-  async placeBid(auctionId: number, amount: number): Promise<boolean> {
+  async placeBid(auctionId: string, amount: number): Promise<boolean> {
     const res = await fetch(`${this.baseUrl}/auctions/${auctionId}/bid`, {
       method: "POST",
       headers: this.getHeaders(),
@@ -103,7 +103,7 @@ export class AuctionApiClient {
     return data.success;
   }
 
-  async buyNow(auctionId: number): Promise<boolean> {
+  async buyNow(auctionId: string): Promise<boolean> {
     const res = await fetch(`${this.baseUrl}/auctions/${auctionId}/buy`, {
       method: "POST",
       headers: this.getHeaders(),
@@ -116,7 +116,7 @@ export class AuctionApiClient {
     return data.success;
   }
   // Nuevo método: subastas compradas (cerradas por comprador)
-  async getPurchasedAuctions(userId: number): Promise<AuctionDTO[]> {
+  async getPurchasedAuctions(userId: string): Promise<AuctionDTO[]> {
   const res = await fetch(`${this.baseUrl}/auctions/history/purchased/${userId}`, {
     headers: this.getHeaders(),
   });
@@ -143,7 +143,7 @@ export class AuctionApiClient {
   }));
 }
 
-async getSoldAuctions(userId: number): Promise<AuctionDTO[]> {
+async getSoldAuctions(userId: string): Promise<AuctionDTO[]> {
   const res = await fetch(`${this.baseUrl}/auctions/history/sold/${userId}`, {
     headers: this.getHeaders(),
   });

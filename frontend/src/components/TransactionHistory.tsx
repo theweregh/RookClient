@@ -5,7 +5,7 @@ import { env } from "../env/env";
 
 interface Props {
   token: string;
-  userId: number;
+  userId: string;
   socket?: Socket | null;
   purchased: AuctionDTO[];
   sold: AuctionDTO[];
@@ -18,10 +18,10 @@ export const TransactionHistory: React.FC<Props> = ({
   purchased,
   sold,
 }) => {
-  const [usernames, setUsernames] = useState<Record<number, string>>({});
+  const [usernames, setUsernames] = useState<Record<string, string>>({});
 
   // Función para obtener username de un userId
-  const fetchUsername = async (id: number): Promise<string> => {
+  const fetchUsername = async (id: string): Promise<string> => {
     if (usernames[id]) return usernames[id];
     try {
       const res = await fetch(`${env.api.base}/users/${id}`, {
@@ -42,7 +42,7 @@ export const TransactionHistory: React.FC<Props> = ({
     const ids = [
       ...purchased.map((a) => a.item?.userId),
       ...sold.map((a) => a.highestBidderId),
-    ].filter(Boolean) as number[];
+    ].filter(Boolean) as string[];
 
     ids.forEach((id) => {
       fetchUsername(id).then((name) =>

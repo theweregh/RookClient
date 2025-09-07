@@ -1,7 +1,7 @@
 // ItemList.tsx
 import React, { useEffect, useState } from "react";
 import type { Item } from "../domain/Item";
-import { io, Socket } from "socket.io-client";
+import {  Socket } from "socket.io-client";
 import { env } from "../env/env";
 
 interface Props {
@@ -30,7 +30,7 @@ export const ItemList: React.FC<Props> = ({ socket, token }) => {
     const handleItemCreated = (item: Item) => setItems(prev => [...prev, item]);
     const handleItemUpdated = (item: Item) =>
       setItems(prev => prev.map(i => (i.id === item.id ? item : i)));
-    const handleItemDeleted = (itemId: number) =>
+    const handleItemDeleted = (itemId: string) =>
       setItems(prev => prev.filter(i => i.id !== itemId));
 
     socket.on("ITEM_CREATED", handleItemCreated);

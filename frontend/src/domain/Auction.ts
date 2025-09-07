@@ -3,7 +3,7 @@
 import type { Item } from "./Item";
 
 export interface AuctionDTO {
-    id: number;
+    id: string;
     title: string;
     description: string;
     startingPrice: number;
@@ -15,16 +15,16 @@ export interface AuctionDTO {
     bids: BidDTO[];
     bidsCount: number;
     highestBid?: BidDTO;
-    highestBidderId?: number;
+    highestBidderId?: string;
 
     item?: Item; // <-- agregar aquí
 }
 
 
 export interface BidDTO {
-    id: number;
-    auctionId: number;
-    userId: number;
+    id: string;
+    auctionId: string;
+    userId: string;
     amount: number;
     createdAt?: string;       // si tu backend usa timestamp, podrías mapearlo
     timestamp?: string;       // para mantener consistencia con backend

@@ -3,7 +3,7 @@ import type { AuctionDTO } from "../domain/Auction";
 import { AuctionApiClient } from "../infrastructure/AuctionApiClient";
 
 export interface CreateAuctionInput {
-  itemId: number;
+  itemId: string;
   startingPrice: number;
   buyNowPrice?: number;
   durationHours: number;
@@ -20,7 +20,7 @@ export class AuctionService {
     return this.apiClient.listAuctions();
   }
 
-  async getAuction(id: number): Promise<AuctionDTO | null> {
+  async getAuction(id: string): Promise<AuctionDTO | null> {
     return this.apiClient.getAuction(id);
   }
 
@@ -28,20 +28,20 @@ export class AuctionService {
     return this.apiClient.createAuction(input);
   }
 
-  async placeBid(auctionId: number, amount: number): Promise<boolean> {
+  async placeBid(auctionId: string, amount: number): Promise<boolean> {
     return this.apiClient.placeBid(auctionId, amount);
   }
 
-  async buyNow(auctionId: number): Promise<boolean> {
+  async buyNow(auctionId: string): Promise<boolean> {
     return this.apiClient.buyNow(auctionId);
   }
 
   // 🔹 Nuevos métodos para historial
-  async getPurchasedAuctions(userId: number): Promise<AuctionDTO[]> {
+  async getPurchasedAuctions(userId: string): Promise<AuctionDTO[]> {
     return this.apiClient.getPurchasedAuctions(userId);
   }
 
-  async getSoldAuctions(userId: number): Promise<AuctionDTO[]> {
+  async getSoldAuctions(userId: string): Promise<AuctionDTO[]> {
     return this.apiClient.getSoldAuctions(userId);
   }
 }
